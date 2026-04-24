@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Fleet Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+#map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+}
+
+.side-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    z-index: 1000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+
+.side-panel h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+}
+
+.summary-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.summary-row:hover,
+.summary-row.active-filter {
+    background: #f3f4f6;
+}
+
+.summary-row strong {
+    margin-left: auto;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.device-list {
+    margin-top: 14px;
+    max-height: 300px;
+    overflow-y: auto;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 10px;
+}
+
+.device-item {
+    padding: 9px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.device-item:hover {
+    background: #f9fafb;
+}
+
+.device-name {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.device-meta {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 3px;
+}
+</style>
+</head>
+
+<body>
+<div id="map"></div>
+
+<div class="side-panel">
+    <h2>Fleet Summary</h2>
+    
+        <div class="summary-row active-filter" data-status="all">
+            <span class="dot" style="background:#111827"></span>
+            <span>All Devices</span>
+            <strong>33</strong>
+        </div>
+    
+        <div class="summary-row" data-status="active">
+            <span class="dot" style="background:#16a34a"></span>
+            <span>Active</span>
+            <strong>10</strong>
+        </div>
+        
+        <div class="summary-row" data-status="idle">
+            <span class="dot" style="background:#f59e0b"></span>
+            <span>Idle</span>
+            <strong>6</strong>
+        </div>
+        
+        <div class="summary-row" data-status="offline">
+            <span class="dot" style="background:#6b7280"></span>
+            <span>Offline</span>
+            <strong>10</strong>
+        </div>
+        
+        <div class="summary-row" data-status="low_battery">
+            <span class="dot" style="background:#dc2626"></span>
+            <span>Low Battery</span>
+            <strong>6</strong>
+        </div>
+        
+        <div class="summary-row" data-status="maintenance">
+            <span class="dot" style="background:#3b82f6"></span>
+            <span>Maintenance</span>
+            <strong>1</strong>
+        </div>
+        
+    <div class="device-list" id="device-list"></div>
+</div>
+
+<script>
+var devices = [{"device_id": "TRK001", "name": "CityFleet SUV 1", "status": "offline", "battery_pct": 1, "lat": -33.821841, "lon": 151.002574, "last_seen": "2026-04-23 18:32:00", "last_seen_ago": "17 hr ago", "location": "Parramatta"}, {"device_id": "TRK002", "name": "FastFreight Van 2", "status": "active", "battery_pct": 79, "lat": -33.821625, "lon": 151.000691, "last_seen": "2026-04-24 08:59:00", "last_seen_ago": "3 hr ago", "location": "Parramatta"}, {"device_id": "TRK003", "name": "SunRoute Van 3", "status": "offline", "battery_pct": 0, "lat": -33.884341, "lon": 151.25109, "last_seen": "2026-04-23 12:42:00", "last_seen_ago": "23 hr ago", "location": "Bondi Junction"}, {"device_id": "TRK004", "name": "PrimeLogistics Truck 4", "status": "offline", "battery_pct": 0, "lat": -33.814093, "lon": 150.996131, "last_seen": "2026-04-24 00:28:00", "last_seen_ago": "12 hr ago", "location": "Parramatta"}, {"device_id": "TRK005", "name": "SunRoute SUV 5", "status": "active", "battery_pct": 88, "lat": -31.945442, "lon": 115.855392, "last_seen": "2026-04-24 08:58:00", "last_seen_ago": "3 hr ago", "location": "Perth CBD"}, {"device_id": "TRK006", "name": "SunRoute Truck 6", "status": "idle", "battery_pct": 62, "lat": -31.947106, "lon": 115.86153, "last_seen": "2026-04-24 08:49:00", "last_seen_ago": "3 hr ago", "location": "Perth CBD"}, {"device_id": "TRK007", "name": "CityFleet Ute 7", "status": "low_battery", "battery_pct": 9, "lat": -37.81415, "lon": 144.969875, "last_seen": "2026-04-24 08:57:00", "last_seen_ago": "3 hr ago", "location": "Melbourne CBD"}, {"device_id": "TRK008", "name": "PrimeLogistics Ute 8", "status": "idle", "battery_pct": 38, "lat": -34.43449, "lon": 150.889904, "last_seen": "2026-04-24 08:11:00", "last_seen_ago": "4 hr ago", "location": "Wollongong"}, {"device_id": "TRK009", "name": "CityFleet Truck 9", "status": "low_battery", "battery_pct": 5, "lat": -33.845111, "lon": 151.20519, "last_seen": "2026-04-24 08:56:00", "last_seen_ago": "3 hr ago", "location": "North Sydney"}, {"device_id": "TRK010", "name": "CityFleet Ute 10", "status": "low_battery", "battery_pct": 7, "lat": -33.834767, "lon": 151.207668, "last_seen": "2026-04-24 09:00:00", "last_seen_ago": "3 hr ago", "location": "North Sydney"}, {"device_id": "TRK011", "name": "AusBuild Ute 11", "status": "offline", "battery_pct": 4, "lat": -32.05215, "lon": 115.7631, "last_seen": "2026-04-23 15:03:00", "last_seen_ago": "21 hr ago", "location": "Fremantle"}, {"device_id": "TRK012", "name": "PrimeLogistics Ute 12", "status": "low_battery", "battery_pct": 2, "lat": -33.418646, "lon": 151.35029, "last_seen": "2026-04-24 09:00:00", "last_seen_ago": "3 hr ago", "location": "Central Coast"}, {"device_id": "TRK013", "name": "SunRoute Van 13", "status": "offline", "battery_pct": 5, "lat": -33.86175, "lon": 151.206987, "last_seen": "2026-04-23 20:10:00", "last_seen_ago": "16 hr ago", "location": "Sydney CBD"}, {"device_id": "TRK014", "name": "PrimeLogistics Sedan 14", "status": "low_battery", "battery_pct": 1, "lat": -33.426931, "lon": 151.338362, "last_seen": "2026-04-24 08:59:00", "last_seen_ago": "3 hr ago", "location": "Central Coast"}, {"device_id": "TRK015", "name": "PrimeLogistics SUV 15", "status": "active", "battery_pct": 36, "lat": -37.561409, "lon": 143.856434, "last_seen": "2026-04-24 08:57:00", "last_seen_ago": "3 hr ago", "location": "Ballarat"}, {"device_id": "TRK016", "name": "FastFreight Truck 16", "status": "idle", "battery_pct": 68, "lat": -37.554876, "lon": 143.844715, "last_seen": "2026-04-24 08:33:00", "last_seen_ago": "3 hr ago", "location": "Ballarat"}, {"device_id": "TRK017", "name": "CityFleet Ute 17", "status": "idle", "battery_pct": 99, "lat": -33.869041, "lon": 151.210726, "last_seen": "2026-04-24 08:41:00", "last_seen_ago": "3 hr ago", "location": "Sydney CBD"}, {"device_id": "TRK018", "name": "FastFreight SUV 18", "status": "active", "battery_pct": 33, "lat": -31.952592, "lon": 115.861561, "last_seen": "2026-04-24 08:57:00", "last_seen_ago": "3 hr ago", "location": "Perth CBD"}, {"device_id": "TRK019", "name": "AusBuild Sedan 19", "status": "active", "battery_pct": 73, "lat": -31.952222, "lon": 115.858884, "last_seen": "2026-04-24 08:55:00", "last_seen_ago": "3 hr ago", "location": "Perth CBD"}, {"device_id": "TRK020", "name": "AusBuild Ute 20", "status": "offline", "battery_pct": 0, "lat": -33.831245, "lon": 151.20555, "last_seen": "2026-04-24 01:30:00", "last_seen_ago": "10 hr ago", "location": "North Sydney"}, {"device_id": "TRK021", "name": "CityFleet SUV 21", "status": "active", "battery_pct": 28, "lat": -32.06248, "lon": 115.763623, "last_seen": "2026-04-24 09:00:00", "last_seen_ago": "3 hr ago", "location": "Fremantle"}, {"device_id": "TRK022", "name": "CityFleet SUV 22", "status": "active", "battery_pct": 24, "lat": -42.88408, "lon": 147.329351, "last_seen": "2026-04-24 08:59:00", "last_seen_ago": "3 hr ago", "location": "Hobart CBD"}, {"device_id": "TRK023", "name": "PrimeLogistics Sedan 23", "status": "offline", "battery_pct": 3, "lat": -33.885917, "lon": 151.25689, "last_seen": "2026-04-24 03:49:00", "last_seen_ago": "8 hr ago", "location": "Bondi Junction"}, {"device_id": "TRK024", "name": "CityFleet Sedan 24", "status": "low_battery", "battery_pct": 5, "lat": -33.803265, "lon": 151.180482, "last_seen": "2026-04-24 09:00:00", "last_seen_ago": "3 hr ago", "location": "Chatswood"}, {"device_id": "TRK025", "name": "FastFreight SUV 25", "status": "active", "battery_pct": 81, "lat": -33.743784, "lon": 150.694652, "last_seen": "2026-04-24 09:00:00", "last_seen_ago": "3 hr ago", "location": "Penrith"}, {"device_id": "TRK026", "name": "CityFleet Truck 26", "status": "active", "battery_pct": 82, "lat": -33.835861, "lon": 151.202678, "last_seen": "2026-04-24 08:58:00", "last_seen_ago": "3 hr ago", "location": "North Sydney"}, {"device_id": "TRK027", "name": "FastFreight SUV 27", "status": "offline", "battery_pct": 1, "lat": -31.946035, "lon": 115.857775, "last_seen": "2026-04-23 13:50:00", "last_seen_ago": "22 hr ago", "location": "Perth CBD"}, {"device_id": "TRK028", "name": "SunRoute Sedan 28", "status": "idle", "battery_pct": 45, "lat": -37.558362, "lon": 143.845928, "last_seen": "2026-04-24 08:03:00", "last_seen_ago": "4 hr ago", "location": "Ballarat"}, {"device_id": "TRK029", "name": "FastFreight SUV 29", "status": "offline", "battery_pct": 5, "lat": -33.864158, "lon": 151.208856, "last_seen": "2026-04-24 07:01:00", "last_seen_ago": "5 hr ago", "location": "Sydney CBD"}, {"device_id": "TRK030", "name": "PrimeLogistics Truck 30", "status": "offline", "battery_pct": 3, "lat": -38.156611, "lon": 144.355335, "last_seen": "2026-04-23 20:05:00", "last_seen_ago": "16 hr ago", "location": "Geelong"}, {"device_id": "TRK032", "name": "FastFreight Van 32", "status": "maintenance", "battery_pct": 72, "lat": -33.87, "lon": 151.21, "last_seen": "2026-04-24 07:30:00", "last_seen_ago": "4 hr ago", "location": "Sydney CBD"}, {"device_id": "TRK033", "name": "CityFleet Truck 33", "status": "active", "battery_pct": 150, "lat": -37.814, "lon": 144.963, "last_seen": "2026-04-24 09:05:00", "last_seen_ago": "3 hr ago", "location": "Melbourne CBD"}, {"device_id": "TRK035", "name": "SunRoute SUV 35", "status": "idle", "battery_pct": -5, "lat": -27.47, "lon": 153.0255, "last_seen": "2027-06-15 14:00:00", "last_seen_ago": "Future timestamp", "location": "Brisbane CBD"}];
+var statusColors = {"active": "#16a34a", "idle": "#f59e0b", "offline": "#6b7280", "low_battery": "#dc2626", "maintenance": "#3b82f6"};
+var currentStatus = "all";
+var markers = [];
+
+var map = L.map("map").setView([-34.22843578787879, 142.35244618181818], 4);
+
+L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+function popupHtml(device) {
+    return `
+        <strong>${device.name}</strong><br>
+        Device ID: ${device.device_id}<br>
+        Status: ${device.status.replace("_", " ")}<br>
+        Battery: ${device.battery_pct}%<br>
+        Location: ${device.location}<br>
+        Last Seen: ${device.last_seen_ago}
+    `;
+}
+
+function createMarkers() {
+    devices.forEach(function(device) {
+        var marker = L.circleMarker([device.lat, device.lon], {
+            radius: 8,
+            color: "#ffffff",
+            weight: 2,
+            fillColor: statusColors[device.status],
+            fillOpacity: 1
+        });
+
+        marker.bindPopup(popupHtml(device));
+
+        marker.deviceStatus = device.status;
+        marker.deviceId = device.device_id;
+        marker.deviceData = device;
+
+        marker.addTo(map);
+        markers.push(marker);
+    });
+}
+
+function applyFilter(status) {
+    markers.forEach(function(marker) {
+        map.removeLayer(marker);
+
+        if (status === "all" || marker.deviceStatus === status) {
+            marker.addTo(map);
+        }
+    });
+
+    map.closePopup();
+}
+
+function renderDeviceList() {
+    var list = document.getElementById("device-list");
+    list.innerHTML = "";
+
+    var filteredDevices = devices.filter(function(device) {
+        return currentStatus === "all" || device.status === currentStatus;
+    });
+
+    filteredDevices.forEach(function(device) {
+        var item = document.createElement("div");
+        item.className = "device-item";
+
+        item.innerHTML = `
+            <div class="device-name">${device.name}</div>
+            <div class="device-meta">
+                ${device.device_id} · ${device.status.replace("_", " ")} · ${device.battery_pct}%
+            </div>
+            <div class="device-meta">${device.location} · ${device.last_seen_ago}</div>
+        `;
+
+        item.addEventListener("click", function() {
+            var selectedMarker = markers.find(function(marker) {
+                return marker.deviceId === device.device_id;
+            });
+
+            if (selectedMarker) {
+                map.closePopup();
+
+                map.flyTo([device.lat, device.lon], 10);
+                selectedMarker.openPopup();
+            }
+        });
+
+        list.appendChild(item);
+    });
+}
+
+document.querySelectorAll(".summary-row").forEach(function(row) {
+    row.addEventListener("click", function() {
+        document.querySelectorAll(".summary-row").forEach(function(item) {
+            item.classList.remove("active-filter");
+        });
+
+        row.classList.add("active-filter");
+        currentStatus = row.dataset.status;
+
+        applyFilter(currentStatus);
+        renderDeviceList();
+    });
+});
+
+createMarkers();
+renderDeviceList();
+</script>
+</body>
+</html>
